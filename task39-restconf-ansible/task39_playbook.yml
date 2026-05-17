@@ -1,0 +1,220 @@
+---
+# Task 39: RESTCONF (Ansible) - Network as Code
+# Automatiseer Cisco IOS-XE configuratie via RESTCONF met Ansible uri module
+# Uitvoeren op: DEVASC (192.168.19.140)
+# Target device: CSR1000v (192.168.19.139)
+
+- name: Task 39 - RESTCONF IOS-XE Automation with Ansible
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    restconf_host: "192.168.19.139"
+    restconf_port: "443"
+    restconf_user: "admin"
+    restconf_password: "123"
+    restconf_base: "https://{{ restconf_host }}:{{ restconf_port }}/restconf/data"
+    restconf_headers:
+      Content-Type: "application/yang-data+json"
+      Accept: "application/yang-data+json"
+
+  tasks:
+
+    # Stap 1: Load JSON configuration
+    - name: Load JSON configuration from file
+      set_fact:
+        config: "{{ lookup('file', 'config-restconf-task39.json') | from_json }}"
+
+    - name: Display configuration loaded
+      debug:
+        msg: "Configuration file loaded successfully"
+
+    # Stap 2: Test RESTCONF connectivity
+    - name: Test RESTCONF connectivity
+      uri:
+        url: "{{ restconf_base }}/Cisco-IOS-XE-native:native/hostname"
+        method: GET
+        user: "{{ restconf_user }}"
+        password: "{{ restconf_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ restconf_headers }}"
+        status_code: [200, 204]
+      register: connectivity_test
+      ignore_errors: yes
+
+    - name: Display connectivity status
+      debug:
+        msg: "RESTCONF connectivity: {{ 'OK' if connectivity_test is succeeded else 'FAILED - check RESTCONF on device' }}"
+
+    # Stap 3: Configure hostname
+    - name: Configure hostname
+      uri:
+        url: "{{ restconf_base }}/Cisco-IOS-XE-native:native/hostname"
+        method: PUT
+        user: "{{ restconf_user }}"
+        password: "{{ restconf_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ restconf_headers }}"
+        body_format: json
+        body:
+          Cisco-IOS-XE-native:hostname: "{{ config.hostname }}"
+        status_code: [200, 204]
+      register: hostname_result
+
+    - name: Display hostname result
+      debug:
+        msg: "Hostname configured: {{ config.hostname }}"
+
+    # Stap 4: Configure GigabitEthernet1
+    - name: Configure GigabitEthernet1
+      uri:
+        url: "{{ restconf_base }}/Cisco-IOS-XE-native:native/interface/GigabitEthernet=1"
+        method: PUT
+        user: "{{ restconf_user }}"
+        password: "{{ restconf_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ restconf_headers }}"
+        body_format: json
+        body:
+          Cisco-IOS-XE-native:GigabitEthernet:
+            name: "1"
+            description: "{{ config.interfaces.GigabitEthernet1.description }}"
+            ip:
+              address:
+                primary:
+                  address: "{{ config.interfaces.GigabitEthernet1.ip }}"
+                  mask: "{{ config.interfaces.GigabitEthernet1.mask }}"
+        status_code: [200, 201, 204]
+      register: ge1_result
+
+    - name: Display GigabitEthernet1 result
+      debug:
+        msg: "GigabitEthernet1 configured: {{ config.interfaces.GigabitEthernet1.ip }}"
+
+    # Stap 5: Configure GigabitEthernet2
+    - name: Configure GigabitEthernet2
+      uri:
+        url: "{{ restconf_base }}/Cisco-IOS-XE-native:native/interface/GigabitEthernet=2"
+        method: PUT
+        user: "{{ restconf_user }}"
+        password: "{{ restconf_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ restconf_headers }}"
+        body_format: json
+        body:
+          Cisco-IOS-XE-native:GigabitEthernet:
+            name: "2"
+            description: "{{ config.interfaces.GigabitEthernet2.description }}"
+            ip:
+              address:
+                primary:
+                  address: "{{ config.interfaces.GigabitEthernet2.ip }}"
+                  mask: "{{ config.interfaces.GigabitEthernet2.mask }}"
+        status_code: [200, 201, 204]
+      register: ge2_result
+
+    - name: Display GigabitEthernet2 result
+      debug:
+        msg: "GigabitEthernet2 configured: {{ config.interfaces.GigabitEthernet2.ip }}"
+
+    # Stap 6: Configure Loopback0
+    - name: Configure Loopback0
+      uri:
+        url: "{{ restconf_base }}/Cisco-IOS-XE-native:native/interface/Loopback=0"
+        method: PUT
+        user: "{{ restconf_user }}"
+        password: "{{ restconf_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ restconf_headers }}"
+        body_format: json
+        body:
+          Cisco-IOS-XE-native:Loopback:
+            name: "0"
+            description: "{{ config.interfaces.Loopback0.description }}"
+            ip:
+              address:
+                primary:
+                  address: "{{ config.interfaces.Loopback0.ip }}"
+                  mask: "{{ config.interfaces.Loopback0.mask }}"
+        status_code: [200, 201, 204]
+      register: lo0_result
+
+    - name: Display Loopback0 result
+      debug:
+        msg: "Loopback0 configured: {{ config.interfaces.Loopback0.ip }}"
+
+    # Stap 7: Configure OSPF
+    - name: Configure OSPF routing
+      uri:
+        url: "{{ restconf_base }}/Cisco-IOS-XE-native:native/router/ospf=1"
+        method: PUT
+        user: "{{ restconf_user }}"
+        password: "{{ restconf_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ restconf_headers }}"
+        body_format: json
+        body:
+          Cisco-IOS-XE-ospf:ospf:
+            id: 1
+            network:
+              - ip: "10.255.255.0"
+                mask: "0.0.0.255"
+                area: 0
+              - ip: "192.168.1.0"
+                mask: "0.0.0.255"
+                area: 0
+              - ip: "172.16.1.0"
+                mask: "0.0.0.255"
+                area: 0
+        status_code: [200, 201, 204]
+      register: ospf_result
+
+    - name: Display OSPF result
+      debug:
+        msg: "OSPF routing configured"
+
+    # Stap 8: Verify configuration via GET
+    - name: Verify hostname via RESTCONF GET
+      uri:
+        url: "{{ restconf_base }}/Cisco-IOS-XE-native:native/hostname"
+        method: GET
+        user: "{{ restconf_user }}"
+        password: "{{ restconf_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ restconf_headers }}"
+        status_code: [200]
+      register: verify_hostname
+
+    - name: Display verification result
+      debug:
+        msg: "Verified hostname: {{ verify_hostname.json['Cisco-IOS-XE-native:hostname'] | default('N/A (dry-run)') }}"
+
+    # Stap 9: Save results to log
+    - name: Save results to log file
+      copy:
+        content: |
+          Task 39 RESTCONF Ansible Automation - Results
+          =============================================
+
+          Configuration Loading  : SUCCESS
+          RESTCONF Connectivity  : {{ 'SUCCESS' if connectivity_test is succeeded else 'FAILED' }}
+          Hostname configured    : {{ config.hostname }}
+          GigabitEthernet1       : {{ config.interfaces.GigabitEthernet1.ip }}
+          GigabitEthernet2       : {{ config.interfaces.GigabitEthernet2.ip }}
+          Loopback0              : {{ config.interfaces.Loopback0.ip }}
+          OSPF                   : Process 1 - Area 0
+          Verification           : {{ verify_hostname.json['Cisco-IOS-XE-native:hostname'] | default('N/A (dry-run)') }}
+
+          Status: COMPLETE
+        dest: "task39_results.log"
+
+    - name: Task 39 completed
+      debug:
+        msg: "Task 39 RESTCONF Ansible Automation Completed Successfully!"

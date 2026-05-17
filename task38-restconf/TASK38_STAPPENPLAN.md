@@ -1,6 +1,12 @@
 # STAP-VOOR-STAP TASK 38: RESTCONF (Python)
 
-## Stap 3.1: Project folder aanmaken
+Workflow: Windows → Git → SCP → DEVASC → Python Execution
+
+---
+
+## FASE 1: WINDOWS - VOORBEREIDING
+
+## Stap 1: Project folder aanmaken
 
 In PowerShell:
 
@@ -12,13 +18,13 @@ cd task38-restconf
 
 ---
 
-## Stap 3.2: Bestanden plaatsen
+## Stap 2: Bestanden plaatsen
 
-Plaats deze 3 bestanden in `C:\Users\fedor\lab-8-2-automation\task38-restconf\`:
+Download Task 38 bestanden en plaats in `C:\Users\fedor\lab-8-2-automation\task38-restconf\`:
 
 1. task38_restconf.py
 2. config-restconf.json
-3. TASK38_README.md (rename naar README.md)
+3. README.md
 
 Verificatie:
 
@@ -32,126 +38,165 @@ ls
 
 ---
 
-## Stap 3.3: Device configuratie (op CSR1000v)
+## Stap 3: Git commit en push
 
-SSH naar CSR1000v en voer uit:
+```powershell
+cd C:\Users\fedor\lab-8-2-automation
+
+git add .
+git commit -m "Add Task 38 RESTCONF Python - Network as Code automation"
+git push
+```
+
+Output verwacht:
+
+```
+[main xxxxx] Add Task 38 RESTCONF Python
+ 3 files changed
+ create mode 100644 task38-restconf/task38_restconf.py
+ create mode 100644 task38-restconf/config-restconf.json
+ create mode 100644 task38-restconf/README.md
+
+To https://github.com/Fedor-Goossens-pxl/lab-8-2-automation.git
+   xxxx -> main
+```
+
+---
+
+## FASE 2: WINDOWS - SCP NAAR DEVASC
+
+## Stap 4: Kopieer bestanden naar DEVASC
+
+In PowerShell:
+
+```powershell
+cd C:\Users\fedor\lab-8-2-automation\task38-restconf
+
+scp task38_restconf.py devasc@192.168.19.140:~/task38-restconf/
+scp config-restconf.json devasc@192.168.19.140:~/task38-restconf/
+scp README.md devasc@192.168.19.140:~/task38-restconf/
+```
+
+Output verwacht:
+
+```
+task38_restconf.py        100%   8KB   2.5MB/s   00:00
+config-restconf.json      100%   1KB   500KB/s   00:00
+README.md                 100%   4KB   800KB/s   00:00
+```
+
+---
+
+## FASE 3: DEVASC - VOORBEREIDING
+
+## Stap 5: SSH naar DEVASC
+
+In PowerShell:
+
+```powershell
+ssh devasc@192.168.19.140
+```
+
+---
+
+## Stap 6: Maak folder aan en verify bestanden
+
+Op DEVASC (bash):
 
 ```bash
-configure terminal
-restconf
-exit
-write memory
+mkdir -p ~/task38-restconf
+cd ~/task38-restconf
+
+ls
+# Output verwacht:
+# task38_restconf.py
+# config-restconf.json
+# README.md
+```
+
+---
+
+## Stap 7: Python libraries installeren op DEVASC
+
+```bash
+pip3 install requests
 ```
 
 Verificatie:
 
 ```bash
-show restconf
-# Output: restconf enabled
+pip3 show requests
+# Output: Name: requests, Version: 2.x.x
 ```
 
 ---
 
-## Stap 3.4: Script credentials aanpassen
+## FASE 4: DEVASC - DEVICE VOORBEREIDING
 
-Edit `task38_restconf.py` en controleer:
+## Stap 8: Verify RESTCONF op CSR1000v
 
-```python
-DEVICE_HOST = "192.168.19.139"
-DEVICE_PORT = 443
-DEVICE_USERNAME = "admin"
-DEVICE_PASSWORD = "123"
-CONFIG_FILE = "config-restconf.json"
+```bash
+ssh admin@192.168.19.139
+
+show run | include restconf
+# Output: restconf
+
+show run | include ip http
+# Output:
+# ip http authentication local
+# ip http secure-server
+
+exit
 ```
 
 ---
 
-## Stap 3.5: Test JSON syntax
+## FASE 5: DEVASC - PYTHON EXECUTION
 
-In PowerShell:
+## Stap 9: Script uitvoeren
 
-```powershell
-python -m json.tool config-restconf.json
-# Geen errors = OK
+Op DEVASC in task38-restconf folder:
+
+```bash
+cd ~/task38-restconf
+python3 task38_restconf.py
 ```
 
----
-
-## Stap 3.6: Test Python syntax
-
-In PowerShell:
-
-```powershell
-python -m py_compile task38_restconf.py
-# Geen output = OK
-```
-
----
-
-## Stap 3.7: Test RESTCONF connectiviteit (optioneel)
-
-In PowerShell:
-
-```powershell
-$uri = "https://192.168.19.139:443/restconf/data/ietf-yang-library:modules-state"
-
-try {
-    $response = Invoke-WebRequest -Uri $uri `
-        -Credential (New-Object System.Management.Automation.PSCredential("admin", (ConvertTo-SecureString "123" -AsPlainText -Force))) `
-        -SkipCertificateCheck `
-        -TimeoutSec 5
-    Write-Host "RESTCONF bereikbaar! Status: $($response.StatusCode)"
-} catch {
-    Write-Host "RESTCONF niet bereikbaar: $($_.Exception.Message)"
-}
-```
-
----
-
-## Stap 3.8: Run RESTCONF script (OPMERKING: zal mogelijk falen op CSR1000v)
-
-In PowerShell:
-
-```powershell
-python task38_restconf.py
-```
-
-Verwachte output:
+Output verwacht:
 
 ```
+======================================================================
 TASK 38: RESTCONF (Python) - Network as Code
 ======================================================================
 
-STAP 1: Configuratie inladen
-Configuratie ingeladen uit: config-restconf.json
+STAP 1: Configuratie ingeladen uit config-restconf.json
 
-Config preview:
-{
-  "hostname": "RESTCONF-Router-PE",
-  "interfaces": [
-    ...
-  ]
-}
+STAP 2: Verbinding testen met CSR1000v via RESTCONF...
+Status code: 200
+Verbinding succesvol!
 
-STAP 2: Controleer RESTCONF connectiviteit
-Verbinden met 192.168.19.139:443...
-Connectiviteit OK - RESTCONF API bereikbaar
+STAP 3: Hostname configureren...
+Status code: 204
+Hostname geconfigureerd: RESTCONF-Router-PE
 
-STAP 3: Configureer hostname
-PUT request naar: https://192.168.19.139:443/restconf/data/...
-Hostname configuratie succesvol (HTTP 201)
+STAP 4: GigabitEthernet1 configureren...
+Status code: 204
+Interface geconfigureerd
 
-STAP 4: Configureer interfaces
-PUT request naar: https://192.168.19.139:443/restconf/data/...
-Interface 1 configuratie succesvol (HTTP 201)
-Interface 2 configuratie succesvol (HTTP 201)
+STAP 5: GigabitEthernet2 configureren...
+Status code: 204
+Interface geconfigureerd
 
-STAP 5: Configureer OSPF
-PUT request naar: https://192.168.19.139:443/restconf/data/...
-OSPF configuratie succesvol (HTTP 201)
+STAP 6: Loopback0 configureren...
+Status code: 204
+Interface geconfigureerd
 
-STAP 6: Verificatie - Haal running config op
-Running configuration opgehaald (HTTP 200)
+STAP 7: OSPF configureren...
+Status code: 204
+OSPF geconfigureerd
+
+STAP 8: Configuratie verifiëren...
+Hostname: RESTCONF-Router-PE
 
 ======================================================================
 TASK 38 VOLTOOID - Network as Code succesvol!
@@ -160,11 +205,13 @@ TASK 38 VOLTOOID - Network as Code succesvol!
 
 ---
 
-## Stap 3.9: Verificatie op device (als script succesvol)
+## FASE 6: DEVASC - DEVICE VERIFICATIE
 
-Op CSR1000v:
+## Stap 10: Verificatie op CSR1000v
 
 ```bash
+ssh admin@192.168.19.139
+
 show run | grep hostname
 # Output: hostname RESTCONF-Router-PE
 
@@ -176,59 +223,111 @@ show ip interface brief
 
 show ip ospf
 # Output: Routing Process "ospf 1" with ID 172.16.1.1
+
+exit
 ```
 
 ---
 
-## Stap 3.10: Git commit Task 38
+## Stap 11: Log file bekijken
 
-In PowerShell:
-
-```powershell
-cd C:\Users\fedor\lab-8-2-automation
-
-git add .
-git commit -m "Add Task 38 RESTCONF Python - HTTP PUT/PATCH with JSON implementation"
-git push
+```bash
+cat task38_restconf.log
 ```
 
 ---
 
-## SAMENVATTING TASK 38 COMMANDS
+## FASE 7: AFSLUITEN
 
-### Setup
-```powershell
-mkdir task38-restconf
-cd task38-restconf
-python -m json.tool config-restconf.json
-python -m py_compile task38_restconf.py
+## Stap 12: Logout DEVASC
+
+```bash
+exit
 ```
 
-### Run
-```powershell
-python task38_restconf.py
-```
+---
 
-### Git
+## COMPLETE WORKFLOW - SNEL OVERZICHT
+
+### Windows - Git & SCP
+
 ```powershell
 cd C:\Users\fedor\lab-8-2-automation
 git add .
 git commit -m "Add Task 38 RESTCONF Python"
 git push
+
+cd task38-restconf
+scp task38_restconf.py devasc@192.168.19.140:~/task38-restconf/
+scp config-restconf.json devasc@192.168.19.140:~/task38-restconf/
+scp README.md devasc@192.168.19.140:~/task38-restconf/
 ```
 
-### Device commands
+### DEVASC - Python uitvoeren
+
 ```bash
-configure terminal
-restconf
+ssh devasc@192.168.19.140
+mkdir -p ~/task38-restconf
+cd ~/task38-restconf
+pip3 install requests
+python3 task38_restconf.py
+cat task38_restconf.log
 exit
-write memory
-show restconf
-show run | grep hostname
-show ip interface brief
-show ip ospf
 ```
 
 ---
 
-**Volg deze stappen en Task 38 is klaar!**
+## TROUBLESHOOTING
+
+### Connection refused (poort 443)
+
+Oorzaak: RESTCONF niet enabled
+Oplossing op CSR1000v:
+
+```bash
+configure terminal
+restconf
+ip http secure-server
+ip http authentication local
+exit
+write memory
+```
+
+### SSL Certificate error
+
+Oorzaak: Self-signed certificaat op CSR1000v
+Oplossing: Script gebruikt al `verify=False`
+
+### 401 Unauthorized
+
+Oorzaak: Fout credentials
+Oplossing: Check username/password in script (admin/123)
+
+### Module not found: requests
+
+Oplossing:
+
+```bash
+pip3 install requests
+```
+
+---
+
+## CHECKLIST TASK 38
+
+- [ ] Folder task38-restconf op Windows aangemaakt
+- [ ] 3 bestanden geplaatst
+- [ ] Git commit gemaakt
+- [ ] GitHub gepusht
+- [ ] Files via SCP naar DEVASC
+- [ ] DEVASC folder verified
+- [ ] pip3 install requests uitgevoerd
+- [ ] RESTCONF enabled op CSR1000v
+- [ ] python3 task38_restconf.py uitgevoerd
+- [ ] Output OK
+- [ ] Log file OK
+- [ ] Device config verified
+
+---
+
+**Task 38 WORKFLOW VOLTOOID!**

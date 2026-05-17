@@ -1,0 +1,28 @@
+{
+  "hostname": "RESTCONF-Router-PE",
+  "interfaces": {
+    "GigabitEthernet1": {
+      "description": "Management Interface - Configured by Ansible RESTCONF",
+      "ip": "10.255.255.1",
+      "mask": "255.255.255.0"
+    },
+    "GigabitEthernet2": {
+      "description": "Secondary Interface - Configured by Ansible RESTCONF",
+      "ip": "192.168.1.1",
+      "mask": "255.255.255.0"
+    },
+    "Loopback0": {
+      "description": "Loopback Interface for OSPF",
+      "ip": "172.16.1.1",
+      "mask": "255.255.255.255"
+    }
+  },
+  "ospf": {
+    "process_id": 1,
+    "networks": [
+      { "ip": "10.255.255.0", "wildcard": "0.0.0.255", "area": 0 },
+      { "ip": "192.168.1.0",  "wildcard": "0.0.0.255", "area": 0 },
+      { "ip": "172.16.1.0",   "wildcard": "0.0.0.255", "area": 0 }
+    ]
+  }
+}
