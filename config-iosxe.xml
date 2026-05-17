@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <!-- Hostname Configuration -->
+    <hostname>NETCONF-Router-PE</hostname>
+    
+    <!-- Interface Configuration - GigabitEthernet1 -->
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <description>Configured by NETCONF</description>
+        <enabled>true</enabled>
+        <ip>
+          <address>
+            <primary>
+              <address>10.255.255.1</address>
+              <mask>255.255.255.0</mask>
+            </primary>
+          </address>
+        </ip>
+      </GigabitEthernet>
+    </interface>
+    
+    <!-- Interface Configuration - GigabitEthernet2 -->
+    <interface>
+      <GigabitEthernet>
+        <name>2</name>
+        <description>Secondary Interface - NETCONF</description>
+        <enabled>true</enabled>
+        <ip>
+          <address>
+            <primary>
+              <address>192.168.1.1</address>
+              <mask>255.255.255.0</mask>
+            </primary>
+          </address>
+        </ip>
+      </GigabitEthernet>
+    </interface>
+    
+    <!-- Loopback Interface -->
+    <interface>
+      <Loopback>
+        <name>0</name>
+        <description>Loopback Interface</description>
+        <ip>
+          <address>
+            <primary>
+              <address>172.16.1.1</address>
+              <mask>255.255.255.255</mask>
+            </primary>
+          </address>
+        </ip>
+      </Loopback>
+    </interface>
+    
+    <!-- OSPF Routing Configuration -->
+    <router>
+      <ospf>
+        <id>1</id>
+        <network>
+          <area>
+            <area-id>0</area-id>
+            <network>
+              <ip>10.255.255.0</ip>
+              <wildcard>0.0.0.255</wildcard>
+            </network>
+            <network>
+              <ip>192.168.1.0</ip>
+              <wildcard>0.0.0.255</wildcard>
+            </network>
+            <network>
+              <ip>172.16.1.0</ip>
+              <wildcard>0.0.0.255</wildcard>
+            </network>
+          </area>
+        </network>
+      </ospf>
+    </router>
+  </native>
+</config>
