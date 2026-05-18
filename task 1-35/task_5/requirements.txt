@@ -1,0 +1,11 @@
+# Task 5 Python Dependencies
+# Compatible with Python 3.8 - 3.12+
+
+# NETCONF client library
+ncclient>=0.6.13
+
+# XML processing (built-in usually, but explicit for clarity)
+lxml>=4.9.0
+
+# For better logging (optional)
+colorlog>=6.7.0
