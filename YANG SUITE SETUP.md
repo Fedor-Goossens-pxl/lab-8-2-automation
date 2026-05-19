@@ -10,6 +10,8 @@ Stappen:
 7. Deploy via NETCONF
 8. Verify in CLI
 
+-----------------
+
 HEB JE NODIG:
 □ YANG Suite credentials:
 
@@ -34,3 +36,6 @@ Task 21+: Transactions
 
 SSH key for GitHub
 Git configured locally
+
+-----------------
+
