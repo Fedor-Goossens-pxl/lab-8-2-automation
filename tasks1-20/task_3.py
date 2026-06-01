@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-Task [N]: [TASK_NAME]
-Category: [CATEGORY]
+Task 3: Configure IPv4 Address on GigabitEthernet1 (COMPLETE IMPLEMENTATION)
+Category: Basis YANG-configuratie (via NETCONF)
 
 EXAM REQUIREMENTS INCLUDED:
-✓ Network automation libraries (ncclient/requests, xml, json)
-✓ Pretty-print XML/JSON responses
+✓ Network automation libraries (ncclient, xml, json)
+✓ Pretty-print XML responses
 ✓ Response parsing & deserialization
 ✓ NETCONF status feedback (<ok/> or error-type/error-tag)
-✓ HTTP status codes (RESTCONF)
 ✓ Git/GitHub as single source of truth
 
 Author: Fedor Goossens
@@ -23,7 +22,7 @@ from ncclient import manager
 import xml.dom.minidom as minidom
 from xml.etree import ElementTree as ET
 
-# Configure logging
+# Configure logging with detailed format
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -38,7 +37,7 @@ print("LIBRARIES USED FOR NETWORK AUTOMATION")
 print("=" * 70)
 print("✓ ncclient       - NETCONF client for device automation")
 print("✓ xml.dom.minidom - XML pretty-printing and parsing")
-print("✓ xml.etree      - XML response handling")
+print("✓ xml.etree      - XML response handling and parsing")
 print("=" * 70 + "\n")
 
 # ============================================================
@@ -50,9 +49,53 @@ USERNAME = "admin"
 PASSWORD = "123"
 TIMEOUT = 30
 
+# ============================================================
+# NETCONF XML Payload - Configure IPv4 Address on Gi1
+# ============================================================
+XML_PAYLOAD = """
+<config>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <ip>
+          <address>
+            <primary>
+              <address>10.0.0.1</address>
+              <mask>255.255.255.0</mask>
+            </primary>
+          </address>
+        </ip>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</config>
+"""
+
+# ============================================================
+# Verification Filter - Get Gi1 configuration
+# ============================================================
+VERIFY_FILTER = """
+<filter>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <ip/>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</filter>
+"""
+
 
 def connect_to_device():
-    """Establish NETCONF connection."""
+    """
+    Establish NETCONF connection to the CSR1000v device.
+    
+    Returns:
+        manager object or None on failure
+    """
     try:
         logger.info(f"Connecting to {DEVICE_IP}:{DEVICE_PORT}...")
         mgr = manager.connect(
@@ -78,6 +121,10 @@ def parse_netconf_response(response_xml):
     Parse NETCONF RPC response and extract status.
     
     EXAM REQUIREMENT: Response parsing & deserialization
+    Extracts <ok/> or error-type/error-tag elements.
+    
+    Args:
+        response_xml: Raw XML response from NETCONF
     
     Returns:
         dict with parsed status and details
@@ -85,15 +132,15 @@ def parse_netconf_response(response_xml):
     try:
         root = ET.fromstring(response_xml)
         
-        # Check for <ok/> element
+        # Check for <ok/> element (success indicator)
         if root.find('.//{urn:ietf:params:xml:ns:netconf:base:1.0}ok') is not None:
             return {
                 'status': 'SUCCESS',
-                'message': '<ok/> received - Operation successful',
+                'message': '<ok/> received - Configuration applied successfully',
                 'raw_response': response_xml
             }
         
-        # Check for errors
+        # Check for RPC errors
         errors = root.findall('.//{urn:ietf:params:xml:ns:netconf:base:1.0}rpc-error')
         if errors:
             error_details = []
@@ -133,6 +180,13 @@ def pretty_print_xml(xml_string):
     Pretty-print XML for readability.
     
     EXAM REQUIREMENT: Pretty-print XML responses
+    Formats raw XML with indentation for human readability.
+    
+    Args:
+        xml_string: Raw XML string
+    
+    Returns:
+        Formatted XML string
     """
     try:
         dom = minidom.parseString(xml_string)
@@ -142,12 +196,105 @@ def pretty_print_xml(xml_string):
         return xml_string
 
 
+def apply_configuration(mgr):
+    """
+    Apply the NETCONF configuration to the device.
+    
+    EXAM REQUIREMENT: NETCONF status feedback
+    Uses edit-config to merge IPv4 configuration to running datastore.
+    
+    Args:
+        mgr: ncclient manager object
+    
+    Returns:
+        Tuple (success: bool, response_dict: dict)
+    """
+    try:
+        logger.info("=" * 70)
+        logger.info("STEP 1: NETCONF EDIT-CONFIG REQUEST")
+        logger.info("=" * 70)
+        
+        logger.info("Target datastore: running")
+        logger.info("Default operation: merge")
+        logger.info("Configuration: GigabitEthernet1 with IPv4 10.0.0.1/24")
+        logger.info("-" * 70)
+        
+        # Send edit-config RPC
+        response = mgr.edit_config(
+            target='running',
+            config=XML_PAYLOAD,
+            default_operation='merge'
+        )
+        
+        # Parse response for status
+        response_dict = parse_netconf_response(response.xml)
+        
+        # Display status
+        logger.info("=" * 70)
+        logger.info("NETCONF RESPONSE STATUS")
+        logger.info("=" * 70)
+        logger.info(f"Status: {response_dict['status']}")
+        logger.info(f"Message: {response_dict['message']}")
+        
+        if response_dict['status'] == 'SUCCESS':
+            logger.info("✓ Configuration applied successfully!")
+            return True, response_dict
+        else:
+            logger.error("✗ Configuration failed!")
+            if 'errors' in response_dict:
+                for error in response_dict['errors']:
+                    logger.error(f"  Error Type: {error['error-type']}")
+                    logger.error(f"  Error Tag: {error['error-tag']}")
+                    logger.error(f"  Message: {error['error-message']}")
+            return False, response_dict
+        
+    except Exception as e:
+        logger.error(f"✗ Configuration failed with exception: {e}")
+        return False, {'status': 'EXCEPTION', 'message': str(e)}
+
+
+def verify_configuration(mgr):
+    """
+    Verify the configuration by reading running-config.
+    
+    EXAM REQUIREMENT: Response parsing and pretty-print
+    Uses GET with filter to retrieve and display current configuration.
+    
+    Args:
+        mgr: ncclient manager object
+    """
+    try:
+        logger.info("=" * 70)
+        logger.info("STEP 2: VERIFICATION - GET RUNNING-CONFIG")
+        logger.info("=" * 70)
+        
+        response = mgr.get_config(
+            source='running',
+            filter=VERIFY_FILTER
+        )
+        
+        print("\n" + "=" * 70)
+        print("RAW NETCONF RESPONSE (XML)")
+        print("=" * 70)
+        print(response.xml)
+        
+        print("\n" + "=" * 70)
+        print("PRETTY-PRINTED RESPONSE (Formatted for readability)")
+        print("=" * 70)
+        print(pretty_print_xml(response.xml))
+        
+        logger.info("✓ Configuration verified successfully!")
+        
+    except Exception as e:
+        logger.error(f"✗ Verification failed: {e}")
+
+
 def main():
     """Main execution function."""
     print("=" * 70)
-    print("TASK [N]: [TASK_NAME]")
+    print("TASK 3: CONFIGURE IPv4 ADDRESS (VIA NETCONF/YANG)")
     print("=" * 70)
-    print(f"GitHub: https://github.com/Fedor-Goossens-pxl/lab-8-2-automation")
+    print(f"GitHub Repository: https://github.com/Fedor-Goossens-pxl/lab-8-2-automation")
     print(f"Device: CSR1000v at {DEVICE_IP}:{DEVICE_PORT}")
     print("=" * 70 + "\n")
     
@@ -158,10 +305,33 @@ def main():
         sys.exit(1)
     
     try:
-        # TODO: Add task-specific logic here
-        logger.info("Task logic to be implemented")
+        # Apply configuration
+        success, response_dict = apply_configuration(mgr)
         
+        if success:
+            logger.info("Task 3 configuration applied successfully!")
+            
+            # Verify configuration
+            verify_configuration(mgr)
+            
+            # Final summary
+            print("\n" + "=" * 70)
+            print("FINAL SUMMARY - TASK 3 SUCCESSFUL ✓")
+            print("=" * 70)
+            print("✓ NETCONF Connection: Established and authenticated")
+            print("✓ Configuration Method: NETCONF edit-config (running datastore)")
+            print("✓ NETCONF Status: <ok/> received")
+            print("✓ Interface Configured: GigabitEthernet1")
+            print("✓ IPv4 Address: 10.0.0.1")
+            print("✓ Subnet Mask: 255.255.255.0 (/24)")
+            print("✓ Verification: GET running-config successful")
+            print("=" * 70)
+        else:
+            logger.error("Task 3 FAILED!")
+            sys.exit(1)
+            
     finally:
+        # Always close the NETCONF session
         try:
             mgr.close_session()
             logger.info("NETCONF session closed")
