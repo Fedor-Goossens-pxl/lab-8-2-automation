@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+
   <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+
     <!-- Hostname Configuration -->
     <hostname>NETCONF-Router-PE</hostname>
-    
+
     <!-- Interface Configuration - GigabitEthernet1 -->
     <interface>
       <GigabitEthernet>
         <name>1</name>
         <description>Configured by NETCONF</description>
-        <enabled>true</enabled>
         <ip>
           <address>
             <primary>
@@ -20,13 +21,12 @@
         </ip>
       </GigabitEthernet>
     </interface>
-    
+
     <!-- Interface Configuration - GigabitEthernet2 -->
     <interface>
       <GigabitEthernet>
         <name>2</name>
         <description>Secondary Interface - NETCONF</description>
-        <enabled>true</enabled>
         <ip>
           <address>
             <primary>
@@ -37,7 +37,7 @@
         </ip>
       </GigabitEthernet>
     </interface>
-    
+
     <!-- Loopback Interface -->
     <interface>
       <Loopback>
@@ -53,7 +53,7 @@
         </ip>
       </Loopback>
     </interface>
-    
+
     <!-- OSPF Routing Configuration -->
     <router>
       <ospf>
@@ -77,5 +77,7 @@
         </network>
       </ospf>
     </router>
+
   </native>
+
 </config>
