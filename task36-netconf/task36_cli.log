@@ -1,0 +1,30 @@
+2026-06-01 16:45:41,718 - INFO - STAP 1: SSH-verbinding maken
+2026-06-01 16:45:41,718 - INFO - Verbinding met 192.168.19.139:22...
+2026-06-01 16:46:08,307 - INFO - STAP 1: SSH-verbinding maken
+2026-06-01 16:46:08,308 - INFO - Verbinding met 192.168.19.139:22...
+2026-06-01 16:47:17,479 - INFO - STAP 1: SSH-verbinding maken
+2026-06-01 16:47:17,479 - INFO - Verbinding met 192.168.19.139:22...
+2026-06-01 16:47:27,484 - ERROR - [FAIL] Timeout bij verbinding: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.19.139:22
+
+
+2026-06-01 16:47:27,485 - ERROR - Device reageert niet - check IP-adres en connectivity
+2026-06-01 16:48:12,614 - INFO - STAP 1: SSH-verbinding maken
+2026-06-01 16:48:12,615 - INFO - Verbinding met 192.168.19.139:22...
+2026-06-01 16:48:22,623 - ERROR - [FAIL] Timeout bij verbinding: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.19.139:22
+
+
+2026-06-01 16:48:22,623 - ERROR - Device reageert niet - check IP-adres en connectivity
