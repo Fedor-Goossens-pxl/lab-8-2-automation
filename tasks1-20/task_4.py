@@ -29,7 +29,6 @@ Requirements:
 import sys
 import logging
 from netmiko import ConnectHandler
-from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
 # Configure logging with detailed format
 logging.basicConfig(
@@ -45,7 +44,6 @@ print("\n" + "=" * 70)
 print("LIBRARIES USED FOR NETWORK AUTOMATION")
 print("=" * 70)
 print("✓ netmiko              - SSH/CLI client for device automation")
-print("✓ netmiko.exceptions   - Exception handling for connection errors")
 print("✓ logging              - Status feedback and error reporting")
 print("=" * 70 + "\n")
 
@@ -88,12 +86,6 @@ def connect_to_device():
         
         return net_connect
         
-    except NetmikoAuthenticationException as e:
-        logger.error(f"✗ Authentication failed: {e}")
-        return None
-    except NetmikoTimeoutException as e:
-        logger.error(f"✗ Connection timeout: {e}")
-        return None
     except Exception as e:
         logger.error(f"✗ Connection failed: {e}")
         return None
