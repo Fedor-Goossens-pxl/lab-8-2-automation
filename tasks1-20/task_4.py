@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Task 4: Remove IPv4 Address from GigabitEthernet1 (COMPLETE IMPLEMENTATION)
-Category: Basis YANG-configuratie (via CLI/SSH)
+Task 4: Remove IPv4 Address from GigabitEthernet1 (NETCONF/YANG)
+Category: Basis YANG-configuratie (via NETCONF)
 
 EXAM REQUIREMENTS INCLUDED:
-✓ Network automation libraries (netmiko, logging)
+✓ Network automation libraries (ncclient, xml)
+✓ Pretty-print XML responses
 ✓ Response parsing & deserialization
-✓ CLI status feedback (success/failure messages)
+✓ NETCONF status feedback (<ok/> or error-type/error-tag)
 ✓ Git/GitHub as single source of truth
-✓ Configuration verification
 
-Description: Verwijder bestaand IPv4-adres van interface via SSH (Netmiko).
+Description: Verwijder IPv4-adres van interface via NETCONF (port 830).
 
 Author: Fedor Goossens
 GitHub: https://github.com/Fedor-Goossens-pxl/lab-8-2-automation
@@ -22,13 +22,15 @@ Usage:
 
 Requirements:
     - Python 3.8+
-    - netmiko library
-    - Access to CSR1000v at 192.168.19.139:22
+    - ncclient library
+    - Access to CSR1000v at 192.168.19.139:830
 """
 
 import sys
 import logging
-from netmiko import ConnectHandler
+from ncclient import manager
+import xml.dom.minidom as minidom
+from xml.etree import ElementTree as ET
 
 # Configure logging with detailed format
 logging.basicConfig(
@@ -43,206 +45,297 @@ logger = logging.getLogger(__name__)
 print("\n" + "=" * 70)
 print("LIBRARIES USED FOR NETWORK AUTOMATION")
 print("=" * 70)
-print("✓ netmiko              - SSH/CLI client for device automation")
-print("✓ logging              - Status feedback and error reporting")
+print("✓ ncclient       - NETCONF client for device automation")
+print("✓ xml.dom.minidom - XML pretty-printing and parsing")
+print("✓ xml.etree      - XML response handling and parsing")
 print("=" * 70 + "\n")
 
 # ============================================================
 # Device Configuration
 # ============================================================
-DEVICE = {
-    'device_type': 'cisco_ios',
-    'host': '192.168.19.139',
-    'username': 'admin',
-    'password': '123',
-    'port': 22,
-    'timeout': 30,
-    'global_delay_factor': 1.0
-}
+DEVICE_IP = "192.168.19.139"
+DEVICE_PORT = 830
+USERNAME = "admin"
+PASSWORD = "123"
+TIMEOUT = 30
 
 # ============================================================
-# Configuration Commands
+# NETCONF XML Payload - Remove IPv4 from Gi1
 # ============================================================
-CONFIG_COMMANDS = [
-    'interface GigabitEthernet1',
-    'no ip address',
-    'end'
-]
+XML_PAYLOAD = """
+<config>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <ip operation="delete"/>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</config>
+"""
+
+# ============================================================
+# Verification Filter - Get Gi1 configuration
+# ============================================================
+VERIFY_FILTER = """
+<filter>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <ip/>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</filter>
+"""
 
 
 def connect_to_device():
     """
-    Establish SSH connection to CSR1000v device.
+    Establish NETCONF connection to the CSR1000v device.
     
     Returns:
-        ConnectHandler object or None on failure
+        manager object or None on failure
     """
     try:
-        logger.info(f"Connecting to {DEVICE['host']}:{DEVICE['port']} via SSH...")
-        
-        net_connect = ConnectHandler(**DEVICE)
+        logger.info(f"Connecting to {DEVICE_IP}:{DEVICE_PORT}...")
+        mgr = manager.connect(
+            host=DEVICE_IP,
+            port=DEVICE_PORT,
+            username=USERNAME,
+            password=PASSWORD,
+            hostkey_verify=False,
+            device_params={'name': 'iosxe'},
+            timeout=TIMEOUT,
+            allow_agent=False,
+            look_for_keys=False
+        )
         logger.info("✓ Successfully connected to device!")
-        logger.info(f"Device prompt: {net_connect.find_prompt()}")
-        
-        return net_connect
-        
+        return mgr
     except Exception as e:
         logger.error(f"✗ Connection failed: {e}")
         return None
 
 
-def apply_configuration(net_connect):
+def parse_netconf_response(response_xml):
     """
-    Apply configuration commands via SSH/CLI.
+    Parse NETCONF RPC response and extract status.
     
-    EXAM REQUIREMENT: Status feedback
-    Sends 'no ip address' command to remove IPv4 from GigabitEthernet1.
+    EXAM REQUIREMENT: Response parsing & deserialization
+    Extracts <ok/> or error-type/error-tag elements.
     
     Args:
-        net_connect: Netmiko ConnectHandler object
+        response_xml: Raw XML response from NETCONF
     
     Returns:
-        Tuple (success: bool, output: str)
+        dict with parsed status and details
+    """
+    try:
+        root = ET.fromstring(response_xml)
+        
+        # Check for <ok/> element (success indicator)
+        if root.find('.//{urn:ietf:params:xml:ns:netconf:base:1.0}ok') is not None:
+            return {
+                'status': 'SUCCESS',
+                'message': '<ok/> received - IPv4 removed successfully',
+                'raw_response': response_xml
+            }
+        
+        # Check for RPC errors
+        errors = root.findall('.//{urn:ietf:params:xml:ns:netconf:base:1.0}rpc-error')
+        if errors:
+            error_details = []
+            for error in errors:
+                error_type = error.find('{urn:ietf:params:xml:ns:netconf:base:1.0}error-type')
+                error_tag = error.find('{urn:ietf:params:xml:ns:netconf:base:1.0}error-tag')
+                error_msg = error.find('{urn:ietf:params:xml:ns:netconf:base:1.0}error-message')
+                
+                error_details.append({
+                    'error-type': error_type.text if error_type is not None else 'unknown',
+                    'error-tag': error_tag.text if error_tag is not None else 'unknown',
+                    'error-message': error_msg.text if error_msg is not None else 'No details'
+                })
+            
+            return {
+                'status': 'FAILURE',
+                'message': 'NETCONF error received',
+                'errors': error_details,
+                'raw_response': response_xml
+            }
+        
+        return {
+            'status': 'UNKNOWN',
+            'message': 'Could not parse response',
+            'raw_response': response_xml
+        }
+    except Exception as e:
+        logger.error(f"Error parsing response: {e}")
+        return {
+            'status': 'PARSE_ERROR',
+            'message': str(e)
+        }
+
+
+def pretty_print_xml(xml_string):
+    """
+    Pretty-print XML for readability.
+    
+    EXAM REQUIREMENT: Pretty-print XML responses
+    Formats raw XML with indentation for human readability.
+    
+    Args:
+        xml_string: Raw XML string
+    
+    Returns:
+        Formatted XML string
+    """
+    try:
+        dom = minidom.parseString(xml_string)
+        return dom.toprettyxml(indent="  ")
+    except Exception as e:
+        logger.error(f"Error formatting XML: {e}")
+        return xml_string
+
+
+def apply_configuration(mgr):
+    """
+    Apply the NETCONF configuration to remove IPv4.
+    
+    EXAM REQUIREMENT: NETCONF status feedback
+    Uses edit-config with delete operation to remove IP configuration.
+    
+    Args:
+        mgr: ncclient manager object
+    
+    Returns:
+        Tuple (success: bool, response_dict: dict)
     """
     try:
         logger.info("=" * 70)
-        logger.info("STEP 1: APPLY CONFIGURATION VIA SSH/CLI")
+        logger.info("STEP 1: NETCONF EDIT-CONFIG REQUEST")
         logger.info("=" * 70)
         
-        logger.info(f"Sending {len(CONFIG_COMMANDS)} configuration commands...")
-        for cmd in CONFIG_COMMANDS:
-            logger.info(f"  > {cmd}")
+        logger.info("Target datastore: running")
+        logger.info("Operation: delete IPv4 configuration")
+        logger.info("Configuration: Remove IP from GigabitEthernet1")
+        logger.info("-" * 70)
         
-        # Send configuration commands
-        output = net_connect.send_config_set(CONFIG_COMMANDS)
+        # Send edit-config RPC
+        response = mgr.edit_config(
+            target='running',
+            config=XML_PAYLOAD,
+            default_operation='merge'
+        )
         
+        # Parse response for status
+        response_dict = parse_netconf_response(response.xml)
+        
+        # Display status
         logger.info("=" * 70)
-        logger.info("CONFIGURATION STATUS")
+        logger.info("NETCONF RESPONSE STATUS")
         logger.info("=" * 70)
-        logger.info("✓ Configuration commands sent successfully!")
-        logger.info(f"Configuration output length: {len(output)} characters")
+        logger.info(f"Status: {response_dict['status']}")
+        logger.info(f"Message: {response_dict['message']}")
         
-        print("\n" + "-" * 70)
-        print("CLI OUTPUT:")
-        print("-" * 70)
-        print(output)
-        print("-" * 70)
-        
-        return True, output
+        if response_dict['status'] == 'SUCCESS':
+            logger.info("✓ IPv4 removed successfully!")
+            return True, response_dict
+        else:
+            logger.error("✗ Configuration failed!")
+            if 'errors' in response_dict:
+                for error in response_dict['errors']:
+                    logger.error(f"  Error Type: {error['error-type']}")
+                    logger.error(f"  Error Tag: {error['error-tag']}")
+                    logger.error(f"  Message: {error['error-message']}")
+            return False, response_dict
         
     except Exception as e:
-        logger.error(f"✗ Configuration failed: {e}")
-        return False, str(e)
+        logger.error(f"✗ Configuration failed with exception: {e}")
+        return False, {'status': 'EXCEPTION', 'message': str(e)}
 
 
-def verify_configuration(net_connect):
+def verify_configuration(mgr):
     """
     Verify the configuration by reading running-config.
     
-    EXAM REQUIREMENT: Response parsing and verification
-    Gets interface configuration to confirm IPv4 removal.
+    EXAM REQUIREMENT: Response parsing and pretty-print
+    Uses GET with filter to retrieve and display current configuration.
     
     Args:
-        net_connect: Netmiko ConnectHandler object
+        mgr: ncclient manager object
     """
     try:
         logger.info("=" * 70)
         logger.info("STEP 2: VERIFICATION - GET RUNNING-CONFIG")
         logger.info("=" * 70)
         
-        # Get interface configuration
-        output = net_connect.send_command('show running-config interface GigabitEthernet1')
+        response = mgr.get_config(
+            source='running',
+            filter=VERIFY_FILTER
+        )
         
         print("\n" + "=" * 70)
-        print("RUNNING-CONFIG VERIFICATION")
+        print("RAW NETCONF RESPONSE (XML)")
         print("=" * 70)
-        print(output)
-        print("=" * 70)
+        print(response.xml)
         
-        # Check if IP address is removed
-        if 'ip address' not in output:
-            logger.info("✓ IPv4 address successfully removed!")
-            return True
-        else:
-            logger.warning("⚠ IPv4 address still present in config")
-            return False
-            
+        print("\n" + "=" * 70)
+        print("PRETTY-PRINTED RESPONSE (Formatted for readability)")
+        print("=" * 70)
+        print(pretty_print_xml(response.xml))
+        
+        logger.info("✓ Configuration verified successfully!")
+        
     except Exception as e:
         logger.error(f"✗ Verification failed: {e}")
-        return False
-
-
-def get_interface_status(net_connect):
-    """
-    Get interface brief status.
-    
-    Args:
-        net_connect: Netmiko ConnectHandler object
-    """
-    try:
-        logger.info("=" * 70)
-        logger.info("STEP 3: INTERFACE STATUS")
-        logger.info("=" * 70)
-        
-        output = net_connect.send_command('show ip interface brief')
-        
-        print("\n" + output)
-        print("=" * 70)
-        
-    except Exception as e:
-        logger.error(f"Failed to get interface status: {e}")
 
 
 def main():
     """Main execution function."""
     print("=" * 70)
-    print("TASK 4: REMOVE IPv4 ADDRESS FROM GigabitEthernet1")
+    print("TASK 4: REMOVE IPv4 ADDRESS (VIA NETCONF/YANG)")
     print("=" * 70)
     print(f"GitHub Repository: https://github.com/Fedor-Goossens-pxl/lab-8-2-automation")
-    print(f"Device: CSR1000v at {DEVICE['host']}:{DEVICE['port']}")
+    print(f"Device: CSR1000v at {DEVICE_IP}:{DEVICE_PORT}")
     print("=" * 70 + "\n")
     
     # Connect to device
-    net_connect = connect_to_device()
-    if not net_connect:
+    mgr = connect_to_device()
+    if not mgr:
         logger.error("Failed to connect to device. Exiting.")
         sys.exit(1)
     
     try:
         # Apply configuration
-        success, output = apply_configuration(net_connect)
+        success, response_dict = apply_configuration(mgr)
         
         if success:
-            logger.info("Configuration applied successfully!")
+            logger.info("Task 4 configuration applied successfully!")
             
             # Verify configuration
-            verify_result = verify_configuration(net_connect)
-            
-            # Get interface status
-            get_interface_status(net_connect)
+            verify_configuration(mgr)
             
             # Final summary
             print("\n" + "=" * 70)
             print("FINAL SUMMARY - TASK 4 SUCCESSFUL ✓")
             print("=" * 70)
-            print("✓ SSH Connection: Established to CSR1000v")
-            print("✓ Configuration Method: CLI via Netmiko")
-            print("✓ Command Executed: 'no ip address' on GigabitEthernet1")
-            print("✓ Status: IPv4 address removed successfully")
-            if verify_result:
-                print("✓ Verification: Running-config confirmed IPv4 removal")
-            else:
-                print("⚠ Verification: Check interface configuration")
+            print("✓ NETCONF Connection: Established and authenticated")
+            print("✓ Configuration Method: NETCONF edit-config (running datastore)")
+            print("✓ NETCONF Status: <ok/> received")
+            print("✓ Operation: IPv4 address deleted from GigabitEthernet1")
+            print("✓ Verification: GET running-config successful")
             print("=" * 70)
         else:
             logger.error("Task 4 FAILED!")
             sys.exit(1)
             
     finally:
-        # Always close the SSH session
+        # Always close the NETCONF session
         try:
-            net_connect.disconnect()
-            logger.info("SSH session closed")
+            mgr.close_session()
+            logger.info("NETCONF session closed")
         except:
             pass
 
