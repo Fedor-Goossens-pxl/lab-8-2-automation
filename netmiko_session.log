@@ -1,0 +1,61 @@
+
+*                                           *
+**                                         **
+***                                       ***
+***  Cisco Networking Academy             ***
+***                                       ***
+***  This software is provided for        ***
+***   Educational Purposes                ***
+***    Only in Networking Academies       ***
+***                                       ***
+**                                         **
+*                                           *
+
+
+
+CSR1kv#
+CSR1kv#terminal width 511
+CSR1kv#terminal length 0
+CSR1kv#
+CSR1kv#
+CSR1kv#configure terminal
+Enter configuration commands, one per line.  End with CNTL/Z.
+CSR1kv(config)#
+CSR1kv(config)#
+CSR1kv(config)#        <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                       ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#            <interface xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-if-manager">
+                           ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#                <GigabitEthernet1>
+                               ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#                    <speed>10000</speed>
+                                   ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#                    <duplex>full</duplex>
+                                   ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#                </GigabitEthernet1>
+                               ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#            </interface>
+                           ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#        </native>
+                       ^
+% Invalid input detected at '^' marker.
+
+CSR1kv(config)#
+CSR1kv(config)#
+CSR1kv(config)#end
+CSR1kv#
+CSR1kv#exit

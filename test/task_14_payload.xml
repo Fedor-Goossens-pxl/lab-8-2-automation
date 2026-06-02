@@ -1,0 +1,8 @@
+<config>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <username>
+      <name>fedor</name>
+      <password>newpassword456</password>
+    </username>
+  </native>
+</config>
