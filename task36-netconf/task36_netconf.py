@@ -9,7 +9,7 @@ router = {
 }
 
 # GitHub raw config URL
-github_url = "https://raw.githubusercontent.com/MilanCampsPXL/Cisco-Network-Automation-Project/refs/heads/main/Configs/Task_36/full_config.xml"
+github_url = "https://raw.githubusercontent.com/Fedor-Goossens-pxl/lab-8-2-automation/main/config/full_config.xml"
 
 try:
 

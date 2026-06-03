@@ -1,0 +1,21 @@
+ollama run llama3
+
+-------------
+
+# Terminal 1: Start Ollama daemon (ONE TIME)
+ollama serve
+
+----------------
+
+# Terminal 2: Kies welke je wilt runnen
+
+# Run 7B (snel):
+ollama run codellama
+
+----------------------
+
+# OF run 34B (kwaliteit):
+ollama run codellama:34b
+
+# Ctrl+C om te stoppen, dan switch naar ander model
+
