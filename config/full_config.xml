@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <hostname>CSR-GITHUB</hostname>
+    <interface>
+      <Loopback>
+        <name>60</name>
+        <description>GITHUB_DEPLOYMENT</description>
+        <ip>
+          <address>
+            <primary>
+              <address>60.60.60.1</address>
+              <mask>255.255.255.255</mask>
+            </primary>
+          </address>
+        </ip>
+      </Loopback>
+      <GigabitEthernet>
+        <name>1</name>
+        <description>NETCONF_GITHUB_DEPLOYMENT</description>
+      </GigabitEthernet>
+    </interface>
+    <router>
+      <ospf xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-ospf">
+        <id>1</id>
+        <network>
+          <ip>60.60.60.0</ip>
+          <mask>0.0.0.255</mask>
+          <area>0</area>
+        </network>
+      </ospf>
+    </router>
+  </native>
+</config>

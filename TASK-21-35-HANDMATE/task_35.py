@@ -140,23 +140,23 @@ def main():
         try:
             print("  LOCK...", end=" ")
             m.dispatch(et.fromstring('<lock><target><running/></target></lock>'))
-            print("✅")
+            print("")
             
             print("  CONFIG...", end=" ")
             response = m.dispatch(et.fromstring(part1_payload))
             data = et.tostring(response.xml, pretty_print=True).decode() if et.iselement(response.xml) else str(response.xml)
             
             if "<ok/>" in data:
-                print("✅")
+                print("")
                 results['part1'] = True
             else:
-                print("❌")
+                print("")
             
             print("  UNLOCK...", end=" ")
             m.dispatch(et.fromstring('<unlock><target><running/></target></unlock>'))
-            print("✅\n")
+            print("\n")
         except Exception as e:
-            print(f"❌ Error: {str(e)[:50]}\n")
+            print(f" Error: {str(e)[:50]}\n")
         
         # ============================================================
         # PART 2: OSPF
@@ -168,23 +168,23 @@ def main():
         try:
             print("  LOCK...", end=" ")
             m.dispatch(et.fromstring('<lock><target><running/></target></lock>'))
-            print("✅")
+            print("")
             
             print("  CONFIG...", end=" ")
             response = m.dispatch(et.fromstring(part2_payload))
             data = et.tostring(response.xml, pretty_print=True).decode() if et.iselement(response.xml) else str(response.xml)
             
             if "<ok/>" in data:
-                print("✅")
+                print("")
                 results['part2'] = True
             else:
-                print("❌")
+                print("")
             
             print("  UNLOCK...", end=" ")
             m.dispatch(et.fromstring('<unlock><target><running/></target></unlock>'))
-            print("✅\n")
+            print("\n")
         except Exception as e:
-            print(f"❌ Error: {str(e)[:50]}\n")
+            print(f" Error: {str(e)[:50]}\n")
         
         # ============================================================
         # PART 3: ACL
@@ -196,21 +196,21 @@ def main():
         try:
             print("  LOCK...", end=" ")
             m.dispatch(et.fromstring('<lock><target><running/></target></lock>'))
-            print("✅")
+            print("")
             
             print("  CONFIG...", end=" ")
             response = m.dispatch(et.fromstring(part3_payload))
             data = et.tostring(response.xml, pretty_print=True).decode() if et.iselement(response.xml) else str(response.xml)
             
             if "<ok/>" in data:
-                print("✅")
+                print("")
                 results['part3'] = True
             else:
-                print("❌")
+                print("")
             
             print("  UNLOCK...", end=" ")
             m.dispatch(et.fromstring('<unlock><target><running/></target></unlock>'))
-            print("✅\n")
+            print("\n")
         except Exception as e:
             print(f"❌ Error: {str(e)[:50]}\n")
         
@@ -223,24 +223,24 @@ def main():
         print()
         
         if results['part1']:
-            print("✅ PART 1: Interface + IP - SUCCESS")
+            print(" PART 1: Interface + IP - SUCCESS")
         else:
-            print("❌ PART 1: Interface + IP - FAILED")
+            print(" PART 1: Interface + IP - FAILED")
         
         if results['part2']:
-            print("✅ PART 2: OSPF Routing - SUCCESS")
+            print(" PART 2: OSPF Routing - SUCCESS")
         else:
-            print("❌ PART 2: OSPF Routing - FAILED")
+            print(" PART 2: OSPF Routing - FAILED")
         
         if results['part3']:
-            print("✅ PART 3: ACL Configuration - SUCCESS")
+            print(" PART 3: ACL Configuration - SUCCESS")
         else:
-            print("❌ PART 3: ACL Configuration - FAILED")
+            print(" PART 3: ACL Configuration - FAILED")
         
         print()
         
         if all(results.values()):
-            print("🎉 ALL PARTS SUCCESSFUL - FULL SERVICE DEPLOYED!")
+            print(" ALL PARTS SUCCESSFUL - FULL SERVICE DEPLOYED!")
         else:
             failed = [k for k, v in results.items() if not v]
             print(f"⚠ Some parts failed: {', '.join(failed)}")
@@ -271,7 +271,7 @@ def main():
         print("   ✓ All-or-nothing semantics per part")
         print("   ✓ Reliable network automation")
         print()
-        print("✅ TASK 35 COMPLETED!")
+        print(" TASK 35 COMPLETED!")
         print("=" * 70 + "\n")
         
         m.close_session()

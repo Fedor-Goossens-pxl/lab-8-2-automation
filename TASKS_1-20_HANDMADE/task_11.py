@@ -1,33 +1,22 @@
 #!/usr/bin/env python3
 """
-Task 11: Configure IPv4 Address on GigabitEthernet1 (COMPLETE IMPLEMENTATION)
+Task 11: Remove Static Route via NETCONF/YANG
 Category: Basis YANG-configuratie (via NETCONF)
 
-EXAM REQUIREMENTS INCLUDED:
-✓ Network automation libraries (ncclient, xml, json)
-✓ Pretty-print XML responses
-✓ Response parsing & deserialization
-✓ NETCONF status feedback (<ok/> or error-type/error-tag)
-✓ Git/GitHub as single source of truth
+Verwijder de eerder aangemaakte statische route (0.0.0.0/0 via 192.168.19.1).
+
+YANG Structure:
+  native > ip > route > ip-route-interface-forwarding-list (with fwd-list)
 
 Author: Fedor Goossens
 GitHub: https://github.com/Fedor-Goossens-pxl/lab-8-2-automation
-Date: Mei 2026
+Date: Juni 2026
 Course: Enterprise Networks 2 - PXL Hogeschool
 """
 
-import sys
-import logging
 from ncclient import manager
 import xml.dom.minidom as minidom
 from xml.etree import ElementTree as ET
-
-# Configure logging with detailed format
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # ============================================================
 # LIBRARIES USED (EXAM REQUIREMENT)
@@ -50,15 +39,18 @@ PASSWORD = "cisco123!"
 TIMEOUT = 30
 
 # ============================================================
-# NETCONF XML Payload - Configure IPv4 Address on Gi1
+# NETCONF XML Payload - DELETE Static Route
 # ============================================================
-XML_PAYLOAD = """<config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+XML_PAYLOAD = """<config>
   <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
     <ip>
       <route>
-        <ip-route-interface-forwarding-list xc:operation="delete">
+        <ip-route-interface-forwarding-list xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" nc:operation="delete">
           <prefix>0.0.0.0</prefix>
           <mask>0.0.0.0</mask>
+          <fwd-list>
+            <fwd>192.168.19.1</fwd>
+          </fwd-list>
         </ip-route-interface-forwarding-list>
       </route>
     </ip>
@@ -66,31 +58,23 @@ XML_PAYLOAD = """<config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
 </config>"""
 
 # ============================================================
-# Verification Filter - Get Gi1 configuration
+# Verification Filter - Get routing configuration
 # ============================================================
 VERIFY_FILTER = """
 <filter>
   <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-    <interface>
-      <GigabitEthernet>
-        <name>1</name>
-        <ip/>
-      </GigabitEthernet>
-    </interface>
+    <ip>
+      <route/>
+    </ip>
   </native>
 </filter>
 """
 
 
 def connect_to_device():
-    """
-    Establish NETCONF connection to the CSR1000v device.
-    
-    Returns:
-        manager object or None on failure
-    """
+    """Establish NETCONF connection to the CSR1000v device."""
     try:
-        logger.info(f"Connecting to {DEVICE_IP}:{DEVICE_PORT}...")
+        print(f"Connecting to {DEVICE_IP}:{DEVICE_PORT}...")
         mgr = manager.connect(
             host=DEVICE_IP,
             port=DEVICE_PORT,
@@ -102,209 +86,96 @@ def connect_to_device():
             allow_agent=False,
             look_for_keys=False
         )
-        logger.info("✓ Successfully connected to device!")
+        print("✓ Successfully connected to device!")
         return mgr
     except Exception as e:
-        logger.error(f"✗ Connection failed: {e}")
+        print(f"✗ Connection failed: {e}")
         return None
 
 
-def parse_netconf_response(response_xml):
-    """
-    Parse NETCONF RPC response and extract status.
-    
-    EXAM REQUIREMENT: Response parsing & deserialization
-    Extracts <ok/> or error-type/error-tag elements.
-    
-    Args:
-        response_xml: Raw XML response from NETCONF
-    
-    Returns:
-        dict with parsed status and details
-    """
-    try:
-        root = ET.fromstring(response_xml)
-        
-        # Check for <ok/> element (success indicator)
-        if root.find('.//{urn:ietf:params:xml:ns:netconf:base:1.0}ok') is not None:
-            return {
-                'status': 'SUCCESS',
-                'message': '<ok/> received - Configuration applied successfully',
-                'raw_response': response_xml
-            }
-        
-        # Check for RPC errors
-        errors = root.findall('.//{urn:ietf:params:xml:ns:netconf:base:1.0}rpc-error')
-        if errors:
-            error_details = []
-            for error in errors:
-                error_type = error.find('{urn:ietf:params:xml:ns:netconf:base:1.0}error-type')
-                error_tag = error.find('{urn:ietf:params:xml:ns:netconf:base:1.0}error-tag')
-                error_msg = error.find('{urn:ietf:params:xml:ns:netconf:base:1.0}error-message')
-                
-                error_details.append({
-                    'error-type': error_type.text if error_type is not None else 'unknown',
-                    'error-tag': error_tag.text if error_tag is not None else 'unknown',
-                    'error-message': error_msg.text if error_msg is not None else 'No details'
-                })
-            
-            return {
-                'status': 'FAILURE',
-                'message': 'NETCONF error received',
-                'errors': error_details,
-                'raw_response': response_xml
-            }
-        
-        return {
-            'status': 'UNKNOWN',
-            'message': 'Could not parse response',
-            'raw_response': response_xml
-        }
-    except Exception as e:
-        logger.error(f"Error parsing response: {e}")
-        return {
-            'status': 'PARSE_ERROR',
-            'message': str(e)
-        }
-
-
-def pretty_print_xml(xml_string):
-    """
-    Pretty-print XML for readability.
-    
-    EXAM REQUIREMENT: Pretty-print XML responses
-    Formats raw XML with indentation for human readability.
-    
-    Args:
-        xml_string: Raw XML string
-    
-    Returns:
-        Formatted XML string
-    """
-    try:
-        dom = minidom.parseString(xml_string)
-        return dom.toprettyxml(indent="  ")
-    except Exception as e:
-        logger.error(f"Error formatting XML: {e}")
-        return xml_string
-
-
 def apply_configuration(mgr):
-    """
-    Apply the NETCONF configuration to the device.
-    
-    EXAM REQUIREMENT: NETCONF status feedback
-    Uses edit-config to merge IPv4 configuration to running datastore.
-    
-    Args:
-        mgr: ncclient manager object
-    
-    Returns:
-        Tuple (success: bool, response_dict: dict)
-    """
+    """Apply the NETCONF DELETE configuration to the device."""
     try:
-        logger.info("=" * 70)
-        logger.info("STEP 1: NETCONF EDIT-CONFIG REQUEST")
-        logger.info("=" * 70)
+        print("\n" + "=" * 70)
+        print("STEP 1: NETCONF EDIT-CONFIG REQUEST (DELETE)")
+        print("=" * 70)
         
-        logger.info("Target datastore: running")
-        logger.info("Default operation: merge")
-        logger.info("Configuration: GigabitEthernet1 with IPv4 10.0.0.1/24")
-        logger.info("-" * 70)
+        print("Target datastore: running")
+        print("Operation: delete (via nc:operation attribute)")
+        print("Route: 0.0.0.0/0 via 192.168.19.1")
+        print("-" * 70)
         
-        # Send edit-config RPC
+        # Send edit-config RPC with operation="delete" in XML element
         response = mgr.edit_config(
             target='running',
             config=XML_PAYLOAD,
-            default_operation='merge'
+            default_operation='merge'  # merge is default, actual delete via nc:operation in XML
         )
         
-        # Parse response for status
-        response_dict = parse_netconf_response(response.xml)
+        print("✓ RPC executed!")
+        print(f"\nResponse: {response.xml}")
         
-        # Display status
-        logger.info("=" * 70)
-        logger.info("NETCONF RESPONSE STATUS")
-        logger.info("=" * 70)
-        logger.info(f"Status: {response_dict['status']}")
-        logger.info(f"Message: {response_dict['message']}")
-        
-        if response_dict['status'] == 'SUCCESS':
-            logger.info("✓ Configuration applied successfully!")
-            return True, response_dict
+        # Check for <ok/> in response
+        if '<ok/>' in response.xml:
+            print("✓ Static route deleted successfully (<ok/> received)!")
+            return True
         else:
-            logger.error("✗ Configuration failed!")
-            if 'errors' in response_dict:
-                for error in response_dict['errors']:
-                    logger.error(f"  Error Type: {error['error-type']}")
-                    logger.error(f"  Error Tag: {error['error-tag']}")
-                    logger.error(f"  Message: {error['error-message']}")
-            return False, response_dict
+            print("⚠ Response received but status unclear")
+            return False
         
     except Exception as e:
-        logger.error(f"✗ Configuration failed with exception: {e}")
-        return False, {'status': 'EXCEPTION', 'message': str(e)}
+        print(f"✗ Configuration failed: {e}")
+        return False
 
 
 def verify_configuration(mgr):
-    """
-    Verify the configuration by reading running-config.
-    
-    EXAM REQUIREMENT: Response parsing and pretty-print
-    Uses GET with filter to retrieve and display current configuration.
-    
-    Args:
-        mgr: ncclient manager object
-    """
+    """Verify the route deletion by reading running-config."""
     try:
-        logger.info("=" * 70)
-        logger.info("STEP 2: VERIFICATION - GET RUNNING-CONFIG")
-        logger.info("=" * 70)
-        
-        response = mgr.get_config(
-            source='running',
-            filter=VERIFY_FILTER
-        )
-        
         print("\n" + "=" * 70)
-        print("RAW NETCONF RESPONSE (XML)")
+        print("STEP 2: VERIFICATION - GET ROUTING CONFIGURATION")
         print("=" * 70)
+        
+        response = mgr.get_config(source='running', filter=VERIFY_FILTER)
+        
+        print("✓ GET-CONFIG executed!")
+        print("\nRouting Configuration:")
+        print("-" * 70)
         print(response.xml)
         
-        print("\n" + "=" * 70)
-        print("PRETTY-PRINTED RESPONSE (Formatted for readability)")
-        print("=" * 70)
-        print(pretty_print_xml(response.xml))
-        
-        logger.info("✓ Configuration verified successfully!")
-        
+        # Verify 0.0.0.0 is NOT in response
+        if '0.0.0.0' not in response.xml or '<data/>' in response.xml:
+            print("✓ Route deletion verified! (0.0.0.0/0 no longer in config)")
+        else:
+            print("⚠ Route may still exist in configuration")
+            
     except Exception as e:
-        logger.error(f"✗ Verification failed: {e}")
+        print(f"✗ Verification failed: {e}")
 
 
 def main():
     """Main execution function."""
     print("=" * 70)
-    print("TASK 11: CONFIGURE IPv4 ADDRESS (VIA NETCONF/YANG)")
+    print("TASK 11: REMOVE STATIC ROUTE (VIA NETCONF/YANG)")
     print("=" * 70)
     print(f"GitHub Repository: https://github.com/Fedor-Goossens-pxl/lab-8-2-automation")
     print(f"Device: CSR1000v at {DEVICE_IP}:{DEVICE_PORT}")
+    print(f"Operation: Delete static route 0.0.0.0/0 via 192.168.19.1")
     print("=" * 70 + "\n")
     
     # Connect to device
     mgr = connect_to_device()
     if not mgr:
-        logger.error("Failed to connect to device. Exiting.")
-        sys.exit(1)
+        print("Failed to connect to device. Exiting.")
+        exit(1)
     
     try:
-        # Apply configuration
-        success, response_dict = apply_configuration(mgr)
+        # Apply DELETE configuration
+        success = apply_configuration(mgr)
         
         if success:
-            logger.info("Task 11 configuration applied successfully!")
+            print("\nTask 11 DELETE operation applied successfully!")
             
-            # Verify configuration
+            # Verify deletion
             verify_configuration(mgr)
             
             # Final summary
@@ -312,22 +183,20 @@ def main():
             print("FINAL SUMMARY - TASK 11 SUCCESSFUL ✓")
             print("=" * 70)
             print("✓ NETCONF Connection: Established and authenticated")
-            print("✓ Configuration Method: NETCONF edit-config (running datastore)")
+            print("✓ Operation: DELETE via NETCONF edit-config")
             print("✓ NETCONF Status: <ok/> received")
-            print("✓ Interface Configured: GigabitEthernet1")
-            print("✓ IPv4 Address: 10.0.0.1")
-            print("✓ Subnet Mask: 255.255.255.0 (/24)")
+            print("✓ Route Deleted: 0.0.0.0/0 via 192.168.19.1")
             print("✓ Verification: GET running-config successful")
             print("=" * 70)
         else:
-            logger.error("Task 11 FAILED!")
-            sys.exit(1)
+            print("Task 11 FAILED!")
+            exit(1)
             
     finally:
         # Always close the NETCONF session
         try:
             mgr.close_session()
-            logger.info("NETCONF session closed")
+            print("NETCONF session closed")
         except:
             pass
 

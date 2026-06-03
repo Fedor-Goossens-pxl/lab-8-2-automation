@@ -1,13 +1,13 @@
-# Task 16 IPv4 Loopback1
+# Task 16: Assign Interface to VLAN
 
 ## 📝 Wat doet het script?
 
-Configureer deze NETCONF/YANG setting op de CSR1000v router.
+Configureer **GigabitEthernet1** als access port in **VLAN 10** via NETCONF/YANG of CLI op de CSR1000v router.
 
 ## ⚙️ Hoe werkt het?
 
 - **Patroon:** NETCONF dispatch() met lxml.etree (YANGsuite pattern)
-- **Method:** Raw XML RPC naar running-config
+- **Method:** Raw XML RPC naar running-config (switchport configuratie)
 - **Datastore:** running-config (merge mode)
 - **Verificatie:** GET-CONFIG RPC
 
@@ -16,8 +16,9 @@ Configureer deze NETCONF/YANG setting op de CSR1000v router.
 ```
 ✓ NETCONF Connection: Established
 ✓ RPC dispatched successfully
-✓ Configuration Applied Successfully! (<ok/> received)
+✓ VLAN Configuration Applied Successfully! (<ok/> received)
 ✓ Verification: GET-CONFIG successful
+✓ VLAN 10 found on GigabitEthernet1!
 ```
 
 ## 🔍 Hoe verifiëren op CSR1000v Router?
@@ -29,15 +30,21 @@ ssh cisco@192.168.19.139
 
 ### 2. Verificatie command:
 ```
-show ip interface loopback1
+show interfaces GigabitEthernet1 switchport
 ```
 
 ### 3. Wat je moet zien:
-Controleer IP 10.0.0.1 255.255.255.0
+```
+Switchport: Enabled
+Administrative Mode: static access
+Operational Mode: static access
+Administrative Trunking Encapsulation: negotiate
+Access Mode VLAN: 10
+```
 
 ### 4. Volledige config checken (optional):
 ```
-show running-config
+show running-config interface GigabitEthernet1
 ```
 
 ## 📂 Script Details
@@ -57,10 +64,10 @@ show running-config
 ## 💡 Tips
 
 - Wacht 2-3 seconden na script completion
-- Als command niets toont, probeer `show running-config`
+- Als command niets toont, probeer `show running-config interface GigabitEthernet1`
 - Bij errors, check: `show logging | include NETCONF`
 
 ---
 
-*TASK_16_IPv4_Loopback1 - Verification Documentation*  
-*PXL Hogeschool | Enterprise Networks 2 | Mei 2026*
+*TASK_16_Assign_Interface_to_VLAN - Verification Documentation*  
+*PXL Hogeschool | Enterprise Networks 2 | Juni 2026*

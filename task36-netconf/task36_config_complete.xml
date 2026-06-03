@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native"
+          xmlns:ospf="http://cisco.com/ns/yang/Cisco-IOS-XE-ospf">
+
+    <!-- HOSTNAME CONFIGURATION -->
+    <hostname>NETCONF-Router-PE</hostname>
+
+    <!-- INTERFACE CONFIGURATION - INTERFACE 1: GigabitEthernet1 -->
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <description>Primary Network Interface (Configured by NETCONF)</description>
+        <ip>
+          <address>
+            <primary>
+              <address>10.255.255.1</address>
+              <mask>255.255.255.0</mask>
+            </primary>
+          </address>
+        </ip>
+      </GigabitEthernet>
+    </interface>
+
+    <!-- INTERFACE CONFIGURATION - INTERFACE 2: Loopback0 -->
+    <interface>
+      <Loopback>
+        <name>0</name>
+        <description>Loopback Interface (OSPF Router ID - Configured by NETCONF)</description>
+        <ip>
+          <address>
+            <primary>
+              <address>172.16.1.1</address>
+              <mask>255.255.255.255</mask>
+            </primary>
+          </address>
+        </ip>
+      </Loopback>
+    </interface>
+
+    <!-- OSPF ROUTING CONFIGURATION -->
+    <router>
+      <ospf:ospf>
+        <ospf:id>1</ospf:id>
+        <ospf:router-id>172.16.1.1</ospf:router-id>
+        <ospf:network>
+          <ospf:ip>10.255.255.0</ospf:ip>
+          <ospf:mask>0.0.0.255</ospf:mask>
+          <ospf:area>0</ospf:area>
+        </ospf:network>
+        <ospf:network>
+          <ospf:ip>172.16.1.1</ospf:ip>
+          <ospf:mask>0.0.0.0</ospf:mask>
+          <ospf:area>0</ospf:area>
+        </ospf:network>
+      </ospf:ospf>
+    </router>
+
+  </native>
+
+</config>

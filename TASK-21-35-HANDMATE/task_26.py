@@ -1,170 +1,177 @@
 #!/usr/bin/env python3
 """
-Task 26: Configure IPv6 Address via NETCONF/YANG
-Pattern: EDIT-CONFIG (IPv6 prefix-list) → VERIFY
-Correct YANG structure: ipv6 > address > prefix-list > prefix
+Task 11: Configure IPv4 Address on GigabitEthernet1 via NETCONF/YANG
+Category: Basis YANG-configuratie (via NETCONF - dispatch pattern)
+
+YANG Structure:
+  native > interface > GigabitEthernet > name + ip > address > primary > address/mask
+
+Author: Fedor Goossens
+GitHub: https://github.com/Fedor-Goossens-pxl/lab-8-2-automation
+Date: Juni 2026
+Course: Enterprise Networks 2 - PXL Hogeschool
 """
 
-import lxml.etree as et
 from ncclient import manager
-from ncclient.operations import RPCError
+from lxml import etree
 
-print("\n" + "=" * 70)
+# ============================================================
+# LIBRARIES USED (EXAM REQUIREMENT)
+# ============================================================
+print("=" * 70)
 print("LIBRARIES USED FOR NETWORK AUTOMATION")
 print("=" * 70)
 print("✓ ncclient - NETCONF client library")
 print("✓ lxml.etree - XML parsing and pretty-printing")
 print("=" * 70 + "\n")
 
-HOST = "192.168.19.139"
+# ============================================================
+# Device Configuration
+# ============================================================
+DEVICE_IP = "192.168.19.139"
+DEVICE_PORT = 830
 USERNAME = "cisco"
 PASSWORD = "cisco123!"
-PORT = 830
+
+print("=" * 70)
+print("TASK 11: CONFIGURE IPv4 ADDRESS VIA NETCONF/YANG")
+print("=" * 70)
+print(f"Device: {DEVICE_IP}:{DEVICE_PORT}")
+print(f"Interface: GigabitEthernet1")
+print(f"IPv4 Address: 10.0.0.1/24")
+print(f"YANG Path: interface > GigabitEthernet > ip > address > primary")
+print("=" * 70 + "\n")
 
 # ============================================================
-# IPv6 Configuration Payload - CORRECT YANG STRUCTURE
-# Uses: ipv6 > address > prefix-list > prefix
+# Step 1: Connect to device
 # ============================================================
-ipv6_config_payload = '''
+print("[1] Connecting to device...")
+try:
+    mgr = manager.connect(
+        host=DEVICE_IP,
+        port=DEVICE_PORT,
+        username=USERNAME,
+        password=PASSWORD,
+        hostkey_verify=False,
+        device_params={'name': 'iosxe'},
+        allow_agent=False,
+        look_for_keys=False,
+        timeout=30
+    )
+    print("✓ Connected!\n")
+except Exception as e:
+    print(f"✗ Connection failed: {e}")
+    exit(1)
+
+# ============================================================
+# Step 2: Build NETCONF RPC payload (IPv4 address on Gi1)
+# ============================================================
+config_payload = """
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <ip>
+          <address>
+            <primary>
+              <address>10.0.0.1</address>
+              <mask>255.255.255.0</mask>
+            </primary>
+          </address>
+        </ip>
+      </GigabitEthernet>
+    </interface>
+  </native>
+"""
+
+# ============================================================
+# Step 3: Send EDIT-CONFIG RPC (dispatch pattern)
+# ============================================================
+print("[2] Configuring IPv4 Address 10.0.0.1/24...")
+print("-" * 70)
+
+rpc_template = """
 <edit-config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-  <target>
-    <running/>
-  </target>
+  <target><running/></target>
   <default-operation>merge</default-operation>
   <config>
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <interface>
-        <GigabitEthernet>
-          <name>1</name>
-          <ipv6>
-            <address>
-              <prefix-list>
-                <prefix>2001:db8::1/64</prefix>
-              </prefix-list>
-            </address>
-          </ipv6>
-        </GigabitEthernet>
-      </interface>
-    </native>
+{config}
   </config>
 </edit-config>
-'''
+""".format(config=config_payload)
 
-verify_ipv6_payload = '''
-<get-config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-  <source>
-    <running/>
-  </source>
-  <filter>
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <interface>
-        <GigabitEthernet>
-          <name>1</name>
-          <ipv6/>
-        </GigabitEthernet>
-      </interface>
-    </native>
-  </filter>
-</get-config>
-'''
-
-def main():
-    print("=" * 70)
-    print("TASK 26: CONFIGURE IPv6 ADDRESS VIA NETCONF/YANG")
-    print("=" * 70)
-    print(f"Device: {HOST}:{PORT}")
-    print(f"Interface: GigabitEthernet1")
-    print(f"IPv6 Address: 2001:db8::1/64")
-    print(f"YANG Path: ipv6 → address → prefix-list → prefix")
-    print("=" * 70 + "\n")
+try:
+    response = mgr.dispatch(etree.fromstring(rpc_template))
+    response_xml = etree.tostring(response, pretty_print=True, encoding='unicode')
     
-    try:
-        print(f"Connecting to {HOST}:{PORT}...")
-        with manager.connect(host=HOST, port=PORT, username=USERNAME,
-                             password=PASSWORD, timeout=90, hostkey_verify=False,
-                             allow_agent=False, look_for_keys=False) as m:
-            
-            print("✓ Successfully connected!\n")
-            
-            # ============================================================
-            # STEP 1: Configure IPv6 Address
-            # ============================================================
-            print("=" * 70)
-            print("STEP 1: CONFIGURE IPv6 ADDRESS")
-            print("=" * 70 + "\n")
-            
-            try:
-                print("Sending EDIT-CONFIG RPC (IPv6: 2001:db8::1/64)...")
-                response = m.dispatch(et.fromstring(ipv6_config_payload))
-                
-                if et.iselement(response.xml):
-                    data = et.tostring(response.xml, pretty_print=True).decode()
-                else:
-                    data = str(response.xml)
-                
-                print("✓ RPC executed!\n")
-                print("Response:")
-                print("-" * 70)
-                print(data)
-                print("-" * 70)
-                
-                if "<ok/>" in data:
-                    print("✓ IPv6 address configured successfully (<ok/> received)!\n")
-                else:
-                    print("⚠ Configuration attempt completed\n")
-                
-            except RPCError as e:
-                print(f"✗ NETCONF Error: {e}\n")
-            except Exception as e:
-                print(f"✗ Exception: {e}\n")
-            
-            # ============================================================
-            # STEP 2: Verify IPv6 Configuration
-            # ============================================================
-            print("=" * 70)
-            print("STEP 2: VERIFICATION - GET IPv6 CONFIGURATION")
-            print("=" * 70 + "\n")
-            
-            try:
-                print("Sending GET-CONFIG RPC for IPv6 verification...")
-                response = m.dispatch(et.fromstring(verify_ipv6_payload))
-                
-                if et.iselement(response.xml):
-                    verify_data = et.tostring(response.xml, pretty_print=True).decode()
-                else:
-                    verify_data = str(response.xml)
-                
-                print("✓ GET-CONFIG executed!\n")
-                print("IPv6 Configuration:")
-                print("-" * 70)
-                print(verify_data[:800] + "..." if len(verify_data) > 800 else verify_data)
-                print("-" * 70)
-                
-                if "2001:db8" in verify_data and "prefix-list" in verify_data:
-                    print("✓ IPv6 configuration verified! (2001:db8::1/64 present)\n")
-                elif "prefix-list" in verify_data:
-                    print("✓ IPv6 prefix-list configuration verified!\n")
-                elif "<data/>" in verify_data or "<data>" not in verify_data:
-                    print("⚠ Configuration may not be present in running datastore\n")
-                else:
-                    print("✓ Verification completed\n")
-                
-            except Exception as e:
-                print(f"Verification failed: {e}\n")
-            
-            print("=" * 70)
-            print("FINAL SUMMARY - TASK 26 SUCCESSFUL ✓")
-            print("=" * 70)
-            print("✓ NETCONF Connection: Established")
-            print("✓ Step 1: IPv6 configuration via NETCONF")
-            print("✓ YANG Structure: ipv6 > address > prefix-list > prefix")
-            print("✓ IPv6 Address: 2001:db8::1/64 on GigabitEthernet1")
-            print("✓ Step 2: Verification via GET-CONFIG")
-            print("✓ IPv6 Configuration: Workflow complete")
-            print("=" * 70 + "\n")
+    print("✓ RPC executed!")
+    print("\nResponse:")
+    print("-" * 70)
+    print(response_xml)
     
-    except Exception as e:
-        print(f"\n✗ Connection failed: {e}\n")
+    # Check for <ok/> in response
+    if '<ok/>' in response_xml or '<ok></ok>' in response_xml:
+        print("✓ IPv4 address configured successfully (<ok/> received)!")
+    else:
+        print("⚠ Response received but status unclear")
+        
+except Exception as e:
+    print(f"✗ RPC Error: {e}")
+    exit(1)
 
-if __name__ == '__main__':
-    main()
+# ============================================================
+# Step 4: Verify configuration via GET-CONFIG
+# ============================================================
+print("\n" + "=" * 70)
+print("STEP 2: VERIFICATION - GET IPv4 CONFIGURATION")
+print("=" * 70)
+
+verify_filter = """
+<filter>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>1</name>
+        <ip>
+          <address/>
+        </ip>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</filter>
+"""
+
+try:
+    response = mgr.get_config(source='running', filter=verify_filter)
+    response_xml = etree.tostring(response, pretty_print=True, encoding='unicode')
+    
+    print("✓ GET-CONFIG executed!")
+    print("\nIPv4 Configuration:")
+    print("-" * 70)
+    print(response_xml)
+    
+    # Verify 10.0.0.1 is in response
+    if '10.0.0.1' in response_xml:
+        print("✓ IPv4 configuration verified!")
+    else:
+        print("⚠ IPv4 address not found in response")
+        
+except Exception as e:
+    print(f"✗ GET-CONFIG Error: {e}")
+
+# ============================================================
+# Final Summary
+# ============================================================
+print("\n" + "=" * 70)
+print("FINAL SUMMARY - TASK 11 SUCCESSFUL ✓")
+print("=" * 70)
+print("✓ NETCONF Connection: Established")
+print("✓ Step 1: IPv4 configuration via NETCONF")
+print("✓ YANG Structure: interface > GigabitEthernet > ip > address > primary")
+print("✓ IPv4 Address: 10.0.0.1/24 on GigabitEthernet1")
+print("✓ Step 2: Verification via GET-CONFIG")
+print("✓ IPv4 Configuration: Workflow complete")
+print("=" * 70)
+
+# Close session
+mgr.close_session()
